@@ -65,30 +65,3 @@ curl.exe -L "http://localhost:8080/share/8a8a4f4a6d0d4a6f80caa0a88e72a6dd" -o do
 허용 확장자:
 
 `.txt`, `.csv`, `.json`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.zip`
-
-## 테스트
-
-```powershell
-go test ./...
-```
-
-테스트는 정상 업로드/다운로드, 경로 조작 파일명, 허용되지 않은 확장자, MIME 불일치, 잘못된 JSON, 잘못된 공유 ID를 검증합니다.
-
-## 배포 체크리스트
-
-Render로 배포하는 구체적인 순서는 [DEPLOY_RENDER.md](./DEPLOY_RENDER.md)에 정리했습니다.
-
-1. 서버에서 Go를 설치하거나 바이너리를 빌드해서 업로드합니다.
-2. 리버스 프록시(Nginx, Caddy 등)에서 HTTPS를 적용합니다.
-3. `BASE_URL=https://your-domain.example`를 지정합니다.
-4. `FILE_SHARE_DATA_DIR`를 영속 디스크 경로로 지정합니다.
-5. 업로드 용량이 필요 이상으로 크지 않게 `MAX_UPLOAD_BYTES`를 조정합니다.
-6. `/healthz`로 상태 확인을 붙입니다.
-
-Linux 빌드 예시:
-
-```powershell
-$env:GOOS="linux"
-$env:GOARCH="amd64"
-go build -o fileshare ./cmd/server
-```

@@ -21,6 +21,7 @@ go run ./cmd/server
 ```
 
 `BASE_URL`은 외부 서버에 배포했을 때 공유 링크에 들어갈 공개 도메인입니다.
+실제로 배포한 웹 주소는 https://golang-file-server.onrender.com 입니다.
 
 ## curl 사용
 

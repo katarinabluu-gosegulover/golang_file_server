@@ -22,6 +22,7 @@ var allowedMediaTypesByExt = map[string]map[string]bool{
 	".gif":  {"image/gif": true},                                             // GIF 이미지 타입입니다.
 	".webp": {"image/webp": true},                                            // WebP 이미지 타입입니다.
 	".zip":  {"application/zip": true, "application/x-zip-compressed": true}, // ZIP은 Windows에서 x-zip-compressed로 감지되기도 합니다.
+	".md":   {"text/markdown": true, "text/plain": true},                     // Markdown도 작은 파일은 text/plain으로 감지될 수 있습니다.
 }
 
 func validateOriginalName(name string) (string, string, error) {

@@ -93,13 +93,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	// HTML 템플릿에 넘길 화면 데이터를 구성합니다.
 	data := indexView{
-		Files:           viewFiles,                                                       // 화면에 표시할 파일 목록입니다.
-		UploadedID:      r.URL.Query().Get("uploaded"),                                   // 업로드 성공 후 표시할 ID입니다.
-		Error:           r.URL.Query().Get("error"),                                      // 업로드 실패 후 표시할 오류 메시지입니다.
-		MaxUploadMB:     s.maxUploadBytes / (1 << 20),                                    // MiB 단위 업로드 제한입니다.
-		AllowedExts:     ".txt, .csv, .json, .pdf, .png, .jpg, .jpeg, .gif, .webp, .zip", // 화면에 보여줄 허용 확장자입니다.
-		UploadEndpoint:  s.absoluteURL(r, "/upload"),                                     // curl 예시에 넣을 업로드 URL입니다.
-		DownloadPattern: s.absoluteURL(r, "/share/{id}"),                                 // curl 예시에 넣을 다운로드 URL 패턴입니다.
+		Files:           viewFiles,                                                            // 화면에 표시할 파일 목록입니다.
+		UploadedID:      r.URL.Query().Get("uploaded"),                                        // 업로드 성공 후 표시할 ID입니다.
+		Error:           r.URL.Query().Get("error"),                                           // 업로드 실패 후 표시할 오류 메시지입니다.
+		MaxUploadMB:     s.maxUploadBytes / (1 << 20),                                         // MiB 단위 업로드 제한입니다.
+		AllowedExts:     ".txt, .csv, .json, .pdf, .png, .jpg, .jpeg, .gif, .webp, .zip, .md", // 화면에 보여줄 허용 확장자입니다.
+		UploadEndpoint:  s.absoluteURL(r, "/upload"),                                          // curl 예시에 넣을 업로드 URL입니다.
+		DownloadPattern: s.absoluteURL(r, "/share/{id}"),                                      // curl 예시에 넣을 다운로드 URL 패턴입니다.
 	}
 
 	// 브라우저가 HTML로 해석하도록 Content-Type을 지정합니다.

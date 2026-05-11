@@ -75,6 +75,9 @@ func (s *Server) routes() {
 
 	// GET /healthz 는 배포 환경에서 서버 상태 확인용으로 사용합니다.
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
+
+	// DELETE /share/{id} 는 공유 ID에 해당하는 파일과 메타데이터를 삭제합니다.
+	s.mux.HandleFunc("DELETE /share/{id}", s.handleDelete)
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +103,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		AllowedExts:     ".txt, .csv, .json, .pdf, .png, .jpg, .jpeg, .gif, .webp, .zip, .md", // 화면에 보여줄 허용 확장자입니다.
 		UploadEndpoint:  s.absoluteURL(r, "/upload"),                                          // curl 예시에 넣을 업로드 URL입니다.
 		DownloadPattern: s.absoluteURL(r, "/share/{id}"),                                      // curl 예시에 넣을 다운로드 URL 패턴입니다.
+		DeletePattern:   s.absoluteURL(r, "/share/{id}"),                                      // curl 예시에 넣을 삭제 URL 패턴입니다.
 	}
 
 	// 브라우저가 HTML로 해석하도록 Content-Type을 지정합니다.
@@ -351,6 +355,33 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok\n"))
 }
 
+func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	// URL의 {id} 부분에서 공유 ID를 꺼냅니다.
+	id := r.PathValue("id")
+
+	if !validateShareID(id) {
+		// ID 형식이 틀리면 존재 여부를 알려주지 않고 404로 처리합니다.
+		http.NotFound(w, r)
+		return
+	}
+
+	// 저장소에서 해당 ID의 파일과 메타데이터를 삭제합니다.
+	_, deleted, err := s.store.Delete(id)
+	if err != nil {
+		// 삭제 중 오류가 발생하면 서버 오류로 처리합니다.
+		http.Error(w, "failed to delete file", http.StatusInternalServerError)
+		return
+	}
+	if !deleted {
+		// ID에 해당하는 파일이 없으면 404로 처리합니다.
+		http.NotFound(w, r)
+		return
+	}
+
+	// 성공적으로 삭제되었음을 알리는 응답을 반환합니다.
+	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+}
+
 func (s *Server) writeUploadError(w http.ResponseWriter, r *http.Request, status int, message string) {
 	if wantsHTML(r) {
 		// 브라우저 요청이면 오류 메시지를 쿼리로 붙여 메인 화면으로 돌려보냅니다.
@@ -459,6 +490,7 @@ type indexView struct {
 	AllowedExts     string     // 화면에 표시할 허용 확장자 목록입니다.
 	UploadEndpoint  string     // curl 업로드 예시에 사용할 URL입니다.
 	DownloadPattern string     // curl 다운로드 예시에 사용할 URL 패턴입니다.
+	DeletePattern   string     // curl 삭제 예시에 사용할 URL 패턴입니다.
 }
 
 // viewFile은 HTML 화면 표시용 파일 메타데이터입니다.

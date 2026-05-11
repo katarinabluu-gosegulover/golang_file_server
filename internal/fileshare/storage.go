@@ -223,3 +223,38 @@ func randomHex(size int) (string, error) {
 	// 랜덤 바이트를 hex 문자열로 바꿔 URL 경로에 안전하게 넣을 수 있게 합니다.
 	return hex.EncodeToString(buf), nil
 }
+
+func (s *Store) Delete(id string) (FileMeta, bool, error) {
+	// metadata map과 파일 삭제 순서를 보호하기 위해 쓰기 잠금을 잡습니다.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 삭제할 ID의 메타데이터를 찾습니다.
+	meta, ok := s.files[id]
+	if !ok {
+		// 메타데이터가 없으면 삭제할 대상이 없다는 뜻입니다.
+		return FileMeta{}, false, nil
+	}
+
+	// 저장 파일명이 업로드 디렉터리 내부 경로인지 다시 검증합니다.
+	path, err := s.PathForStoredName(meta.StoredName)
+	if err != nil {
+		return FileMeta{}, true, err
+	}
+
+	// 실제 업로드 파일을 디스크에서 삭제합니다.
+	if err := os.Remove(path); err != nil {
+		return FileMeta{}, true, err
+	}
+
+	// 메모리 metadata map에서도 삭제합니다.
+	delete(s.files, id)
+
+	// metadata.json에 삭제된 상태를 저장합니다.
+	if err := s.saveLocked(); err != nil {
+		return FileMeta{}, true, err
+	}
+
+	// 삭제한 파일 메타데이터와 성공 여부를 반환합니다.
+	return meta, true, nil
+}

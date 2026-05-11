@@ -51,6 +51,12 @@ curl.exe -F "file=@sample.png" http://localhost:8080/upload
 curl.exe -L "http://localhost:8080/share/8a8a4f4a6d0d4a6f80caa0a88e72a6dd" -o downloaded.png
 ```
 
+삭제:
+
+```powershell
+curl.exe -X DELETE "http://localhost:8080/share/8a8a4f4a6d0d4a6f80caa0a88e72a6dd"
+```
+
 ## 보안 처리
 
 - 업로드 파일은 `data/uploads` 아래에 저장하며, 원본 파일명은 저장 경로에 사용하지 않습니다.

@@ -256,7 +256,7 @@ const indexTemplate = `<!doctype html>
       justify-content: flex-end;
     }
 
-    /* 공유 링크 복사 버튼과 다운로드 링크의 공통 스타일입니다. */
+    /* 공유 링크 복사 버튼, 다운로드 링크, 삭제 버튼의 공통 스타일입니다. */
     .link-button {
       display: inline-flex;
       align-items: center;
@@ -277,6 +277,18 @@ const indexTemplate = `<!doctype html>
     .link-button:hover {
       border-color: var(--info);
       color: var(--info);
+    }
+
+    /* 삭제 버튼은 위험한 동작이므로 붉은 계열로 구분합니다. */
+    .danger-button {
+      border-color: #f0b8b1;
+      color: var(--danger);
+    }
+
+    /* 삭제 버튼 hover 상태입니다. */
+    .danger-button:hover {
+      border-color: var(--danger);
+      color: var(--danger);
     }
 
     /* 업로드 파일이 없을 때 표시되는 빈 상태 스타일입니다. */
@@ -371,6 +383,10 @@ const indexTemplate = `<!doctype html>
           <span class="hint">curl 다운로드</span>
           <!-- Go 템플릿 값으로 다운로드 URL 패턴을 출력합니다. -->
           <code>curl -L "{{.DownloadPattern}}" -o downloaded-file</code>
+          <!-- 삭제 curl 예시 라벨입니다. -->
+          <span class="hint">curl 삭제</span>
+          <!-- Go 템플릿 값으로 삭제 URL 패턴을 출력합니다. -->
+          <code>curl -X DELETE "{{.DeletePattern}}"</code>
         </div>
       </section>
 
@@ -380,8 +396,8 @@ const indexTemplate = `<!doctype html>
         <div class="table-head">
           <!-- 파일 목록 제목입니다. -->
           <h2 id="files-title">공유 파일</h2>
-          <!-- Go 템플릿의 len 함수로 파일 개수를 표시합니다. -->
-          <span class="hint">{{len .Files}} files</span>
+          <!-- Go 템플릿의 len 함수로 파일 개수를 표시하고, 삭제 후 JavaScript가 갱신할 수 있게 data-count를 둡니다. -->
+          <span class="hint" id="file-count" data-count="{{len .Files}}">{{len .Files}} files</span>
         </div>
 
         {{if .Files}}
@@ -400,7 +416,7 @@ const indexTemplate = `<!doctype html>
             <tbody>
               {{range .Files}}
                 <!-- 파일 하나당 한 행을 렌더링합니다. -->
-                <tr>
+                <tr data-file-row="{{.ID}}">
                   <td>
                     <!-- 원본 파일명을 표시합니다. -->
                     <span class="name">{{.OriginalName}}</span>
@@ -410,12 +426,14 @@ const indexTemplate = `<!doctype html>
                   <!-- formatBytes 함수로 사람이 읽기 쉬운 파일 크기를 표시합니다. -->
                   <td>{{formatBytes .Size}}</td>
                   <td>
-                    <!-- 공유 링크 복사와 다운로드 액션을 묶습니다. -->
+                    <!-- 공유 링크 복사, 다운로드, 삭제 액션을 묶습니다. -->
                     <div class="actions">
                       <!-- data-copy에 공유 URL을 넣고 JavaScript가 클립보드에 복사합니다. -->
                       <button class="link-button" type="button" data-copy="{{.ShareURL}}">복사</button>
                       <!-- 공유 URL로 바로 다운로드할 수 있는 링크입니다. -->
                       <a class="link-button" href="{{.ShareURL}}">다운로드</a>
+                      <!-- data-delete에 공유 URL을 넣고 JavaScript가 DELETE 요청을 보냅니다. -->
+                      <button class="link-button danger-button" type="button" data-delete="{{.ShareURL}}" data-file-name="{{.OriginalName}}">삭제</button>
                     </div>
                   </td>
                 </tr>
@@ -446,6 +464,56 @@ const indexTemplate = `<!doctype html>
           // 저장해 둔 이전 텍스트를 복원합니다.
           button.textContent = previous;
         }, 1200);
+      });
+    });
+
+    // data-delete 속성이 있는 모든 삭제 버튼을 찾습니다.
+    document.querySelectorAll("[data-delete]").forEach((button) => {
+      // 각 삭제 버튼에 클릭 이벤트를 연결합니다.
+      button.addEventListener("click", async () => {
+        // 실수로 삭제하지 않도록 브라우저 기본 확인창을 띄웁니다.
+        if (!confirm(button.dataset.fileName + " 파일을 삭제할까요?")) {
+          // 취소를 누르면 아무 요청도 보내지 않습니다.
+          return;
+        }
+
+        // 삭제 요청 중에는 버튼을 비활성화해 중복 클릭을 막습니다.
+        button.disabled = true;
+        // 삭제 진행 상태를 버튼 텍스트로 표시합니다.
+        button.textContent = "삭제 중";
+
+        // 공유 URL로 DELETE 요청을 보냅니다.
+        const response = await fetch(button.dataset.delete, { method: "DELETE" });
+        if (!response.ok) {
+          // 실패하면 사용자에게 알려주고 버튼을 다시 사용할 수 있게 합니다.
+          alert("삭제에 실패했습니다.");
+          button.disabled = false;
+          button.textContent = "삭제";
+          return;
+        }
+
+        // 삭제된 파일의 테이블 행을 찾습니다.
+        const row = button.closest("tr");
+        if (row) {
+          // 서버 삭제가 성공했으면 화면에서도 행을 제거합니다.
+          row.remove();
+        }
+
+        // 파일 개수 표시 요소를 찾습니다.
+        const count = document.querySelector("#file-count");
+        if (count) {
+          // 현재 개수에서 1을 뺀 값을 계산합니다.
+          const nextCount = Math.max(0, Number(count.dataset.count || "0") - 1);
+          // 다음 삭제에도 쓸 수 있도록 data-count 값을 갱신합니다.
+          count.dataset.count = String(nextCount);
+          // 화면에 보이는 파일 개수 텍스트를 갱신합니다.
+          count.textContent = nextCount + " files";
+
+          // 마지막 파일을 삭제했으면 빈 상태 화면을 보여주기 위해 페이지를 새로고침합니다.
+          if (nextCount === 0) {
+            window.location.reload();
+          }
+        }
       });
     });
   </script>

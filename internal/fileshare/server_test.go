@@ -180,6 +180,67 @@ func TestRejectsInvalidShareID(t *testing.T) {
 	}
 }
 
+func TestDeleteUploadedFile(t *testing.T) {
+	// 테스트 전용 서버 핸들러를 만듭니다.
+	handler := newTestHandler(t)
+
+	// 삭제할 텍스트 파일을 먼저 업로드합니다.
+	body, contentType := multipartBody(t, "file", "delete-me.txt", []byte("delete me"))
+
+	// 업로드 요청을 만듭니다.
+	uploadReq := httptest.NewRequest(http.MethodPost, "/upload", body)
+
+	// multipart Content-Type 헤더를 설정합니다.
+	uploadReq.Header.Set("Content-Type", contentType)
+
+	// 업로드 응답 기록기를 만듭니다.
+	uploadRec := httptest.NewRecorder()
+
+	// 업로드 요청을 실행합니다.
+	handler.ServeHTTP(uploadRec, uploadReq)
+	if uploadRec.Code != http.StatusCreated {
+		// 삭제 테스트는 업로드 성공이 전제입니다.
+		t.Fatalf("expected upload 201, got %d: %s", uploadRec.Code, uploadRec.Body.String())
+	}
+
+	// 업로드 응답 JSON을 담을 구조체입니다.
+	var upload UploadResponse
+	if err := json.Unmarshal(uploadRec.Body.Bytes(), &upload); err != nil {
+		// JSON 응답을 파싱할 수 없으면 테스트 실패입니다.
+		t.Fatalf("decode upload response: %v", err)
+	}
+
+	// 업로드된 파일 ID로 DELETE 요청을 만듭니다.
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/share/"+upload.ID, nil)
+
+	// 삭제 응답 기록기를 만듭니다.
+	deleteRec := httptest.NewRecorder()
+
+	// 삭제 요청을 실행합니다.
+	handler.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		// 정상 삭제는 200 OK여야 합니다.
+		t.Fatalf("expected delete 200, got %d: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+	if !strings.Contains(deleteRec.Body.String(), `"deleted":true`) {
+		// 삭제 성공 JSON 응답이 있어야 합니다.
+		t.Fatalf("expected deleted response, got %q", deleteRec.Body.String())
+	}
+
+	// 같은 ID로 다시 다운로드 요청을 만듭니다.
+	downloadReq := httptest.NewRequest(http.MethodGet, "/share/"+upload.ID, nil)
+
+	// 다운로드 응답 기록기를 만듭니다.
+	downloadRec := httptest.NewRecorder()
+
+	// 다운로드 요청을 실행합니다.
+	handler.ServeHTTP(downloadRec, downloadReq)
+	if downloadRec.Code != http.StatusNotFound {
+		// 삭제된 파일은 다시 받을 수 없어야 합니다.
+		t.Fatalf("expected deleted file to return 404, got %d", downloadRec.Code)
+	}
+}
+
 func newTestHandler(t *testing.T) http.Handler {
 	// helper 함수 실패 시 호출한 테스트 줄을 보여주도록 표시합니다.
 	t.Helper()
